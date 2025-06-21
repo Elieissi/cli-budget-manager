@@ -3,14 +3,18 @@ from budget import Budget
 from transaction import Transaction
 import json
 from pathlib import Path
-
+import jsonschema
 def load_data():
     """
     Load wallet and budget data from JSON file.
     Return a Wallet object and a Budget object.
     Create empty ones if file doesn't exist or is malformed.
+    
     """
-    pass
+    schema = {
+
+
+    }
 
 def save_data(wallet, budget):
     """

@@ -1,7 +1,7 @@
 {
   "transactions": [
     {"type": "expense", "amount": 15, "category": "food", "date": "2025-06-20"},
-    {"type": "income", "amount": 200, "source": "freelance", "date": "2025-06-19"}
+    {"type": "income", "amount": 200, "category": "freelance", "date": "2025-06-19"}
   ],
   "budget": {"limit": 500, "spent": 125}
 }
