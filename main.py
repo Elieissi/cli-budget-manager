@@ -4,6 +4,8 @@ from transaction import Transaction
 import json
 from pathlib import Path
 import jsonschema
+import datetime
+
 def load_data():
     """
     Load wallet and budget data from JSON file.
@@ -11,10 +13,58 @@ def load_data():
     Create empty ones if file doesn't exist or is malformed.
     
     """
-    schema = {
-
-
+    finance_schema = {
+        "type": "object",
+        "properties": {
+            "transactions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "type": {"type": "string"},
+                        "amount": {"type": "number"},
+                        "category": {"type": "string"},
+                        "date": {"type": "string"}
+                    },
+                    "required": ["type", "amount", "category", "date"]
+                }
+            },
+            "budget": {
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "number"},
+                    "spent": {"type": "number"}
+                },
+                "required": ["limit", "spent"]
+            }
+        },
+        "required": ["transactions", "budget"]
     }
+
+    if Path("finance_data.json").exists(): 
+            try:
+                with open("finance_data.json", "r") as file:
+                    contents = json.load(file)
+                    jsonschema.validate(instance=contents, schema=finance_schema)
+                
+
+            except (json.JSONDecodeError, jsonschema.ValidationError):  # malformed case
+                with open("finance_data.json", "w") as file:
+                    json.dump({"transactions": [], "budget": {"limit": 0, "spent": 0}}, file, indent=4)
+                    contents = {"transactions": [], "budget": {"limit": 0, "spent": 0}}
+
+    else:  # if path doesn't exist
+        with open("finance_data.json", "w") as file:
+            json.dump({"transactions": [], "budget": {"limit": 0, "spent": 0}}, file, indent=4)
+            contents = {"transactions": [], "budget": {"limit": 0, "spent": 0}}
+            
+    wallet = Wallet()
+    wallet.load_from_dict(contents["transactions"])
+
+    budget = Budget()
+    budget.load_from_dict(contents["budget"])
+
+    return wallet, budget
 
 def save_data(wallet, budget):
     """
