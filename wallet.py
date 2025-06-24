@@ -18,7 +18,7 @@ class Wallet:
         self.transactions.append(transaction)
     
     def __str__(self):
-        return f"{self.amount}, {self.type}, {self.category}, {self.date}"
+        return f"Wallet with {len(self.transactions)} transactions. Balance: {self.get_balance()}"
 
 
     def get_balance(self):

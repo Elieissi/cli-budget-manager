@@ -6,6 +6,7 @@ from pathlib import Path
 import jsonschema
 import datetime
 
+
 def load_data():
     """
     Load wallet and budget data from JSON file.
@@ -70,29 +71,67 @@ def save_data(wallet, budget):
     """
     Save current wallet and budget state to JSON file.
     """
-    pass
+    with open("finance_data.json", "w") as file:
+        json.dump( {"transactions": wallet.to_dict(), "budget": {"limit": budget.limit, "spent": budget.spent}}, file, indent=4 )
+
 
 def add_transaction(wallet, budget):
     """
-    Prompt user for transaction details.
-    Create Transaction object and add it to wallet.
-    If expense, update budget as well.
+    prompt user for transaction details.
+    create transaction and add it to wallet.
+    if expense, update budget as well.
     """
-    pass
 
+    while True:
+        try:
+            amount = float(input("what is the amount of the transaction? ").strip())
+            break
+        except ValueError:
+            print("invalid amount, try again")
+
+    
+    while True:
+        t_type = input("is the transaction 'income' or 'expense'? ").strip().lower()
+        if t_type in ("income", "expense"):
+            break
+        print("enter 'income' or 'expense'")
+
+    
+    category = input("what is the category of the transaction? ").strip()
+
+    while True:
+        date_input = input(
+            "what is the date of this transaction? (YYYY-MM-DD) "
+        ).strip()
+        try:
+            date = datetime.strptime(date_input, "%Y-%m-%d").date()
+            break
+        except ValueError:
+            print("invalid format. use YYYY-MM-DD")
+
+    #init
+    transaction = Transaction(amount, t_type, category, date)
+
+    # add to wallet
+    wallet.add_transaction(transaction)
+
+    # update budget if expense
+    if t_type == "expense":
+        
+        budget.spent += amount
+
+        
 def view_balance(wallet):
     """
     Print the current balance to user.
     """
-    pass
+    print(wallet)
 
 def view_history(wallet):
     """
-    Ask user if they want to filter by type/category.
-    Print filtered transaction history.
-    (hint: this is where t_type/category filters get passed to Wallet)
+    Print transaction history
     """
-    pass
+    wallet.get_history(wallet)
 
 def set_budget(budget):
     """
