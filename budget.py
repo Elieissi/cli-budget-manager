@@ -2,12 +2,12 @@ class Budget:
     """
     Tracks spending limit and current spent amount.
     """
-    def __init__(self, limit):
+    def __init__(self, limit=0, spent=0):
         """
         Initialize with spending limit and reset spent to 0.
         """
         self.limit = limit
-        self.spent = 0
+        self.spent = spent
 
     def record_expense(self, amount):
         """
@@ -20,10 +20,8 @@ class Budget:
         """
         Return True if spent exceeds or equals limit.
         """
-        if self.spent >= self.limit:
-            return True
-        else:
-            return False
+        return self.spent >= self.limit
+
 
     def to_dict(self):
         """

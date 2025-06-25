@@ -4,7 +4,7 @@ from transaction import Transaction
 import json
 from pathlib import Path
 import jsonschema
-import datetime
+from datetime import datetime
 
 
 def load_data():
@@ -104,7 +104,7 @@ def add_transaction(wallet, budget):
             "what is the date of this transaction? (YYYY-MM-DD) "
         ).strip()
         try:
-            date = datetime.strptime(date_input, "%Y-%m-%d").date()
+            date = str(datetime.strptime(date_input, "%Y-%m-%d").date())
             break
         except ValueError:
             print("invalid format. use YYYY-MM-DD")
@@ -117,8 +117,7 @@ def add_transaction(wallet, budget):
 
     # update budget if expense
     if t_type == "expense":
-        
-        budget.spent += amount
+        budget.record_expense(amount)
 
         
 def view_balance(wallet):
@@ -131,21 +130,29 @@ def view_history(wallet):
     """
     Print transaction history
     """
-    wallet.get_history(wallet)
+    wallet.get_history()
 
-def set_budget(budget):
-    """
-    Prompt user to set a new monthly budget limit.
-    Overwrite existing value.
-    """
-    pass
 
 def show_menu():
     """
     Display options menu to user.
     Return chosen action.
     """
-    pass
+    print("\n=== Personal Finance Tracker ===")
+    print("1. Add transaction")
+    print("2. View balance")
+    print("3. View transaction history")
+    print("4. Set budget")
+    print("5. View budget status")
+    print("6. Exit")
+    choice = input("Choose an option: ").strip()
+    return choice
+
+def view_budget(budget):
+    print(f"Current budget limit: {budget.limit}")
+    print(f"Current spent amount: {budget.spent}")
+    if budget.is_exceeded():
+        print("Warning: you have exceeded your limit!")
 
 def main():
     """
@@ -155,7 +162,28 @@ def main():
     - Perform actions until user exits
     - Save data on exit
     """
-    pass
+    wallet, budget = load_data()
 
+    while True:
+        action = show_menu()
+
+        if action == "1":
+            add_transaction(wallet, budget)
+        elif action == "2":
+            view_balance(wallet)
+        elif action == "3":
+            view_history(wallet)
+        elif action == "4":
+            new_limit = float(input("Enter new budget limit: "))
+            budget.limit = new_limit
+        elif action == "5":
+            view_budget(budget)
+        elif action == "6":
+            save_data(wallet, budget)
+            print("Goodbye!")
+            break
+        else:
+            print("Invalid choice. Please enter a number from 1-5.")
+    
 if __name__ == "__main__":
     main()
