@@ -4,7 +4,7 @@ from transaction import Transaction
 import json
 from pathlib import Path
 import jsonschema
-from datetime import datetime
+from datetime import date, datetime
 
 
 def load_data():
@@ -133,6 +133,55 @@ def view_history(wallet):
     wallet.get_history()
 
 
+def search_data(wallet):
+    
+    while True:
+        print("1: Filter by date range\t 2: Filter by Type")
+        option = input("Select 1 or 2:\n").strip()
+        if option in ("1", "2"):
+            break
+        print("Invalid Selection.")
+    
+    if option == "1":
+        while True:
+            try:
+                start = input("Enter start date (YYYY-MM-DD): ").strip()
+                end = input("Enter end date (YYYY-MM-DD): ").strip()
+
+                start_date = date.fromisoformat(start)
+                end_date = date.fromisoformat(end)
+
+                if start_date > end_date:
+                    print("Start date must be before end date.")
+                    continue
+                break
+            except Exception as e:
+                print(e)
+                print("Invalid date format. Use YYYY-MM-DD.")
+        wallet.filter_search(start_date = start_date, end_date = end_date)
+
+    elif option == "2":
+        while True:
+            print("Filter by 1: Expense\t Filter by 2: Income")
+            e_or_i = input("Select 1 or 2:\n").strip()
+
+            if e_or_i in ("1", "2"):
+                break
+            print("Invalid selection")
+        
+        if e_or_i == "1":
+            e_or_i = "expense"
+        elif e_or_i == "2":
+            e_or_i = "income"
+        wallet.filter_search(e_or_i = e_or_i)
+
+
+def view_budget(budget):
+    print(f"Current budget limit: {budget.limit}")
+    print(f"Current spent amount: {budget.spent}")
+    if budget.is_exceeded():
+        print("Warning: you have exceeded your limit!")
+
 def show_menu():
     """
     Display options menu to user.
@@ -144,15 +193,11 @@ def show_menu():
     print("3. View transaction history")
     print("4. Set budget")
     print("5. View budget status")
-    print("6. Exit")
+    print("6. Search by Type or Date")
+    print("7. Exit")
     choice = input("Choose an option: ").strip()
     return choice
 
-def view_budget(budget):
-    print(f"Current budget limit: {budget.limit}")
-    print(f"Current spent amount: {budget.spent}")
-    if budget.is_exceeded():
-        print("Warning: you have exceeded your limit!")
 
 def main():
     """
@@ -179,6 +224,8 @@ def main():
         elif action == "5":
             view_budget(budget)
         elif action == "6":
+            search_data(wallet)
+        elif action == "7":
             save_data(wallet, budget)
             print("Goodbye!")
             break
