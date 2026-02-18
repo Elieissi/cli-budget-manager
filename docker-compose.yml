@@ -1,0 +1,30 @@
+services:
+  app:
+    build: .
+    container_name: finance-tracker-app
+    depends_on:
+      - db
+    environment:
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-finance_tracker}
+      DB_USER: ${DB_USER:-finance_user}
+      DB_PASSWORD: ${DB_PASSWORD:-finance_pass}
+    stdin_open: true
+    tty: true
+
+  db:
+    image: postgres:16
+    container_name: finance-tracker-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-finance_tracker}
+      POSTGRES_USER: ${DB_USER:-finance_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-finance_pass}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
