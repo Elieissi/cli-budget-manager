@@ -1,87 +1,40 @@
-from wallet import Wallet
-from budget import Budget
-from transaction import Transaction
-import json
-from pathlib import Path
-import jsonschema
 from datetime import date, datetime
 
+from sqlalchemy import select
 
-def load_data():
-    """
-    Load wallet and budget data from JSON file.
-    Return a Wallet object and a Budget object.
-    Create empty ones if file doesn't exist or is malformed.
-    
-    """
-    finance_schema = {
-        "type": "object",
-        "properties": {
-            "transactions": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "type": {"type": "string"},
-                        "amount": {"type": "number"},
-                        "category": {"type": "string"},
-                        "date": {"type": "string"}
-                    },
-                    "required": ["type", "amount", "category", "date"]
-                }
-            },
-            "budget": {
-                "type": "object",
-                "properties": {
-                    "limit": {"type": "number"},
-                    "spent": {"type": "number"}
-                },
-                "required": ["limit", "spent"]
-            }
-        },
-        "required": ["transactions", "budget"]
-    }
-
-    if Path("finance_data.json").exists(): 
-            try:
-                with open("finance_data.json", "r") as file:
-                    contents = json.load(file)
-                    jsonschema.validate(instance=contents, schema=finance_schema)
-                
-
-            except (json.JSONDecodeError, jsonschema.ValidationError):  # malformed case
-                with open("finance_data.json", "w") as file:
-                    json.dump({"transactions": [], "budget": {"limit": 0, "spent": 0}}, file, indent=4)
-                    contents = {"transactions": [], "budget": {"limit": 0, "spent": 0}}
-
-    else:  # if path doesn't exist
-        with open("finance_data.json", "w") as file:
-            json.dump({"transactions": [], "budget": {"limit": 0, "spent": 0}}, file, indent=4)
-            contents = {"transactions": [], "budget": {"limit": 0, "spent": 0}}
-            
-    wallet = Wallet()
-    wallet.load_from_dict(contents["transactions"])
-
-    budget = Budget()
-    budget.load_from_dict(contents["budget"])
-
-    return wallet, budget
-
-def save_data(wallet, budget):
-    """
-    Save current wallet and budget state to JSON file.
-    """
-    with open("finance_data.json", "w") as file:
-        json.dump( {"transactions": wallet.to_dict(), "budget": {"limit": budget.limit, "spent": budget.spent}}, file, indent=4 )
+from database import Base, SessionLocal, engine
+from models import Budget, Transaction, Wallet
 
 
-def add_transaction(wallet, budget):
-    """
-    prompt user for transaction details.
-    create transaction and add it to wallet.
-    if expense, update budget as well.
-    """
+def init_db() -> None:
+    """Create DB tables and ensure a default wallet and budget exist."""
+    Base.metadata.create_all(bind=engine)
 
+    with SessionLocal() as session:
+        wallet = session.scalar(select(Wallet).limit(1))
+        if wallet is None:
+            wallet = Wallet(name="Default Wallet")
+            wallet.budget = Budget(limit=0, spent=0)
+            session.add(wallet)
+            session.commit()
+
+
+def get_wallet(session) -> Wallet:
+    wallet = session.scalar(select(Wallet).limit(1))
+    if wallet is None:
+        wallet = Wallet(name="Default Wallet")
+        wallet.budget = Budget(limit=0, spent=0)
+        session.add(wallet)
+        session.commit()
+        session.refresh(wallet)
+    if wallet.budget is None:
+        wallet.budget = Budget(limit=0, spent=0)
+        session.commit()
+        session.refresh(wallet)
+    return wallet
+
+
+def add_transaction(session, wallet: Wallet) -> None:
     while True:
         try:
             amount = float(input("what is the amount of the transaction? ").strip())
@@ -89,59 +42,60 @@ def add_transaction(wallet, budget):
         except ValueError:
             print("invalid amount, try again")
 
-    
     while True:
         t_type = input("is the transaction 'income' or 'expense'? ").strip().lower()
         if t_type in ("income", "expense"):
             break
         print("enter 'income' or 'expense'")
 
-    
     category = input("what is the category of the transaction? ").strip()
 
     while True:
-        date_input = input(
-            "what is the date of this transaction? (YYYY-MM-DD) "
-        ).strip()
+        date_input = input("what is the date of this transaction? (YYYY-MM-DD) ").strip()
         try:
-            date = str(datetime.strptime(date_input, "%Y-%m-%d").date())
+            transaction_date = datetime.strptime(date_input, "%Y-%m-%d").date()
             break
         except ValueError:
             print("invalid format. use YYYY-MM-DD")
 
-    #init
-    transaction = Transaction(amount, t_type, category, date)
+    transaction = Transaction(
+        amount=amount,
+        type=t_type,
+        category=category,
+        transaction_date=transaction_date,
+        wallet=wallet,
+    )
+    session.add(transaction)
 
-    # add to wallet
-    wallet.add_transaction(transaction)
-
-    # update budget if expense
     if t_type == "expense":
-        budget.record_expense(amount)
+        wallet.budget.record_expense(amount)
 
-        
-def view_balance(wallet):
-    """
-    Print the current balance to user.
-    """
-    print(wallet)
-
-def view_history(wallet):
-    """
-    Print transaction history
-    """
-    wallet.get_history()
+    session.commit()
+    print("Transaction saved.")
 
 
-def search_data(wallet):
-    
+def view_balance(wallet: Wallet) -> None:
+    print(f"Wallet with {len(wallet.transactions)} transactions. Balance: {wallet.get_balance()}")
+
+
+def view_history(wallet: Wallet) -> None:
+    if not wallet.transactions:
+        print("No transactions found.")
+        return
+    for trans in wallet.transactions:
+        print(trans)
+
+
+def search_data(wallet: Wallet) -> None:
+    filtered = list(wallet.transactions)
+
     while True:
         print("1: Filter by date range\t 2: Filter by Type")
         option = input("Select 1 or 2:\n").strip()
         if option in ("1", "2"):
             break
         print("Invalid Selection.")
-    
+
     if option == "1":
         while True:
             try:
@@ -155,38 +109,61 @@ def search_data(wallet):
                     print("Start date must be before end date.")
                     continue
                 break
-            except Exception as e:
-                print(e)
+            except ValueError:
                 print("Invalid date format. Use YYYY-MM-DD.")
-        wallet.filter_search(start_date = start_date, end_date = end_date)
 
-    elif option == "2":
+        filtered = [
+            t for t in filtered if start_date <= t.transaction_date <= end_date
+        ]
+
+    if option == "2":
         while True:
             print("Filter by 1: Expense\t Filter by 2: Income")
             e_or_i = input("Select 1 or 2:\n").strip()
-
             if e_or_i in ("1", "2"):
                 break
             print("Invalid selection")
-        
-        if e_or_i == "1":
-            e_or_i = "expense"
-        elif e_or_i == "2":
-            e_or_i = "income"
-        wallet.filter_search(e_or_i = e_or_i)
+
+        filter_type = "expense" if e_or_i == "1" else "income"
+        filtered = [t for t in filtered if t.type == filter_type]
+
+    if not filtered:
+        print("No transactions found.")
+        return
+
+    print("\nAmount   Type       Category    Date")
+    print("---------------------------------------------")
+    for t in filtered:
+        amount_str = f"{t.amount:<8}"
+        type_str = f"{t.type:<10}"
+        category_str = f"{t.category:<12}"
+        date_str = t.transaction_date.isoformat()
+        print(f"{amount_str}{type_str}{category_str}{date_str}")
 
 
-def view_budget(budget):
-    print(f"Current budget limit: {budget.limit}")
-    print(f"Current spent amount: {budget.spent}")
-    if budget.is_exceeded():
+def view_budget(wallet: Wallet) -> None:
+    print(f"Current budget limit: {wallet.budget.limit}")
+    print(f"Current spent amount: {wallet.budget.spent}")
+    if wallet.budget.is_exceeded():
         print("Warning: you have exceeded your limit!")
 
-def show_menu():
-    """
-    Display options menu to user.
-    Return chosen action.
-    """
+
+def set_budget(session, wallet: Wallet) -> None:
+    while True:
+        try:
+            new_limit = float(input("Enter new budget limit: "))
+            if new_limit < 0:
+                print("Budget limit cannot be negative.")
+                continue
+            wallet.budget.limit = new_limit
+            session.commit()
+            print("Budget updated.")
+            return
+        except ValueError:
+            print("Invalid amount. Enter a numeric value.")
+
+
+def show_menu() -> str:
     print("\n=== Personal Finance Tracker ===")
     print("1. Add transaction")
     print("2. View balance")
@@ -195,42 +172,35 @@ def show_menu():
     print("5. View budget status")
     print("6. Search by Type or Date")
     print("7. Exit")
-    choice = input("Choose an option: ").strip()
-    return choice
+    return input("Choose an option: ").strip()
 
 
-def main():
-    """
-    Main CLI loop:
-    - Load data
-    - Show menu
-    - Perform actions until user exits
-    - Save data on exit
-    """
-    wallet, budget = load_data()
+def main() -> None:
+    init_db()
 
-    while True:
-        action = show_menu()
+    with SessionLocal() as session:
+        while True:
+            wallet = get_wallet(session)
+            action = show_menu()
 
-        if action == "1":
-            add_transaction(wallet, budget)
-        elif action == "2":
-            view_balance(wallet)
-        elif action == "3":
-            view_history(wallet)
-        elif action == "4":
-            new_limit = float(input("Enter new budget limit: "))
-            budget.limit = new_limit
-        elif action == "5":
-            view_budget(budget)
-        elif action == "6":
-            search_data(wallet)
-        elif action == "7":
-            save_data(wallet, budget)
-            print("Goodbye!")
-            break
-        else:
-            print("Invalid choice. Please enter a number from 1-5.")
-    
+            if action == "1":
+                add_transaction(session, wallet)
+            elif action == "2":
+                view_balance(wallet)
+            elif action == "3":
+                view_history(wallet)
+            elif action == "4":
+                set_budget(session, wallet)
+            elif action == "5":
+                view_budget(wallet)
+            elif action == "6":
+                search_data(wallet)
+            elif action == "7":
+                print("Goodbye!")
+                break
+            else:
+                print("Invalid choice. Please enter a number from 1-7.")
+
+
 if __name__ == "__main__":
     main()
