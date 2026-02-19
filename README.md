@@ -9,6 +9,7 @@ A simple CLI application for tracking personal finances with PostgreSQL persiste
 - View balance and transaction history.
 - Set and view budget status.
 - Search transactions by type or date range.
+- Clear all transactions and reset spent budget safely.
 - Persistent storage using PostgreSQL and SQLAlchemy ORM.
 
 ---
@@ -32,7 +33,8 @@ A simple CLI application for tracking personal finances with PostgreSQL persiste
 pip install -r requirements.txt
 ```
 
-4. Set database environment variables (example values):
+4. Set database environment variables (example values).
+   If not set, the app defaults to `localhost:5432` for local development:
 
 ```bash
 export DB_HOST=localhost
@@ -68,3 +70,10 @@ This starts:
 - `app`: CLI finance tracker container.
 - `db`: PostgreSQL container with persistent volume `postgres_data`.
 
+
+---
+
+## 🩺 Troubleshooting
+
+- If you get `could not translate host name "db"`, you are running locally but using Docker host settings.
+  Use `DB_HOST=localhost` for local Postgres, or run with Docker Compose where `DB_HOST=db` is correct.
