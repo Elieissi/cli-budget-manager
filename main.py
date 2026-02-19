@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 
 from database import Base, SessionLocal, engine
 from models import Budget, Transaction, Wallet
@@ -163,6 +164,21 @@ def set_budget(session, wallet: Wallet) -> None:
             print("Invalid amount. Enter a numeric value.")
 
 
+def clear_transactions(session, wallet: Wallet) -> None:
+    confirm = input("Are you sure you want to clear all transactions? (yes/no): ").strip().lower()
+    if confirm != "yes":
+        print("Clear operation cancelled.")
+        return
+
+    deleted = session.query(Transaction).filter(Transaction.wallet_id == wallet.id).delete()
+    wallet.budget.spent = 0
+    session.commit()
+
+    # Clear SQLAlchemy's in-memory relationship cache so next reads come from DB.
+    session.expire(wallet, ["transactions", "budget"])
+    print(f"Cleared {deleted} transaction(s).")
+
+
 def show_menu() -> str:
     print("\n=== Personal Finance Tracker ===")
     print("1. Add transaction")
@@ -171,12 +187,20 @@ def show_menu() -> str:
     print("4. Set budget")
     print("5. View budget status")
     print("6. Search by Type or Date")
-    print("7. Exit")
+    print("7. Clear all transactions")
+    print("8. Exit")
     return input("Choose an option: ").strip()
 
 
 def main() -> None:
-    init_db()
+    try:
+        init_db()
+    except OperationalError as error:
+        print("Could not connect to PostgreSQL.")
+        print(f"Error details: {error.orig}")
+        print("For local runs, set DB_HOST=localhost (or your DB server host).")
+        print("For Docker Compose runs, use DB_HOST=db and start with: docker compose up --build")
+        return
 
     with SessionLocal() as session:
         while True:
@@ -196,10 +220,12 @@ def main() -> None:
             elif action == "6":
                 search_data(wallet)
             elif action == "7":
+                clear_transactions(session, wallet)
+            elif action == "8":
                 print("Goodbye!")
                 break
             else:
-                print("Invalid choice. Please enter a number from 1-7.")
+                print("Invalid choice. Please enter a number from 1-8.")
 
 
 if __name__ == "__main__":

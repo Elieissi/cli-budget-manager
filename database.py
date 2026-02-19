@@ -12,6 +12,7 @@ def build_database_url() -> str:
     """Build PostgreSQL connection URL from environment variables."""
     db_user = os.getenv("DB_USER", "finance_user")
     db_password = os.getenv("DB_PASSWORD", "finance_pass")
+    # Default to localhost for non-Docker local runs.
     db_host = os.getenv("DB_HOST", "localhost")
     db_port = os.getenv("DB_PORT", "5432")
     db_name = os.getenv("DB_NAME", "finance_tracker")
