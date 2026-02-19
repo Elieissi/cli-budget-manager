@@ -60,7 +60,21 @@ python main.py
 cp .env.example .env
 ```
 
-2. Build and run app + PostgreSQL:
+2. Start PostgreSQL in the background:
+
+```bash
+docker compose up -d db
+```
+
+3. Run the CLI app interactively:
+
+```bash
+docker compose run --rm app
+```
+
+This is the most reliable option for terminal input (`input()` prompts).
+
+4. Alternative: build and run app + PostgreSQL:
 
 ```bash
 docker compose up --build
@@ -69,6 +83,16 @@ docker compose up --build
 This starts:
 - `app`: CLI finance tracker container.
 - `db`: PostgreSQL container with persistent volume `postgres_data`.
+
+Useful commands:
+
+```bash
+docker compose ps
+docker compose logs -f
+docker compose stop app
+docker compose down
+docker compose down -v
+```
 
 
 ---
