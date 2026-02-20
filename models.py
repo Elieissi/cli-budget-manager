@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Date, Float, ForeignKey, Integer, String
+from sqlalchemy import Date, Float, ForeignKey, Integer, String, func, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -25,14 +25,18 @@ class Wallet(Base):
         cascade="all, delete-orphan",
     )
 
-    def get_balance(self) -> float:
-        balance = 0.0
-        for transaction in self.transactions:
-            if transaction.type == "income":
-                balance += transaction.amount
-            elif transaction.type == "expense":
-                balance -= transaction.amount
-        return balance
+    def get_balance(self, session) -> float:
+        income_stmt = select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+            Transaction.wallet_id == self.id,
+            Transaction.type == "income",
+        )
+        expense_stmt = select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+            Transaction.wallet_id == self.id,
+            Transaction.type == "expense",
+        )
+        income_total = session.scalar(income_stmt)
+        expense_total = session.scalar(expense_stmt)
+        return float(income_total - expense_total)
 
 
 class Budget(Base):
