@@ -1,5 +1,8 @@
 from datetime import date
 
+import pytest
+from sqlalchemy.exc import IntegrityError
+
 from models import Budget, Transaction, Wallet
 
 
@@ -73,3 +76,19 @@ def test_get_balance_uses_only_wallet_transactions(session, wallet):
     session.commit()
 
     assert wallet.get_balance(session) == 100.0
+
+
+def test_transaction_amount_must_be_positive(session, wallet):
+    session.add(
+        Transaction(
+            amount=-10.0,
+            type="expense",
+            category="bad",
+            transaction_date=date(2026, 1, 4),
+            wallet_id=wallet.id,
+        )
+    )
+
+    with pytest.raises(IntegrityError):
+        session.commit()
+    session.rollback()
