@@ -39,9 +39,14 @@ def add_transaction(session, wallet: Wallet) -> None:
     while True:
         try:
             amount = float(input("what is the amount of the transaction? ").strip())
-            break
         except ValueError:
             print("invalid amount, try again")
+            continue
+
+        if amount <= 0:
+            print("amount must be greater than 0")
+            continue
+        break
 
     while True:
         t_type = input("is the transaction 'income' or 'expense'? ").strip().lower()

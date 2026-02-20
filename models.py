@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Date, Float, ForeignKey, Integer, String, func, select
+from sqlalchemy import CheckConstraint, Date, Float, ForeignKey, Integer, String, func, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -62,6 +62,7 @@ class Transaction(Base):
     """Stores one financial transaction belonging to a wallet."""
 
     __tablename__ = "transactions"
+    __table_args__ = (CheckConstraint("amount > 0", name="ck_transactions_amount_positive"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
