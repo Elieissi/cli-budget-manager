@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
 
 from database import Base, SessionLocal, engine
@@ -75,8 +75,10 @@ def add_transaction(session, wallet: Wallet) -> None:
     print("Transaction saved.")
 
 
-def view_balance(wallet: Wallet) -> None:
-    print(f"Wallet with {len(wallet.transactions)} transactions. Balance: {wallet.get_balance()}")
+def view_balance(session, wallet: Wallet) -> None:
+    count_stmt = select(func.count(Transaction.id)).where(Transaction.wallet_id == wallet.id)
+    transaction_count = session.scalar(count_stmt) or 0
+    print(f"Wallet with {transaction_count} transactions. Balance: {wallet.get_balance(session)}")
 
 
 def view_history(wallet: Wallet) -> None:
@@ -87,8 +89,8 @@ def view_history(wallet: Wallet) -> None:
         print(trans)
 
 
-def search_data(wallet: Wallet) -> None:
-    filtered = list(wallet.transactions)
+def search_data(wallet: Wallet, session) -> None:
+    stmt = select(Transaction).where(Transaction.wallet_id == wallet.id)
 
     while True:
         print("1: Filter by date range\t 2: Filter by Type")
@@ -113,9 +115,7 @@ def search_data(wallet: Wallet) -> None:
             except ValueError:
                 print("Invalid date format. Use YYYY-MM-DD.")
 
-        filtered = [
-            t for t in filtered if start_date <= t.transaction_date <= end_date
-        ]
+        stmt = stmt.where(Transaction.transaction_date.between(start_date, end_date))
 
     if option == "2":
         while True:
@@ -126,7 +126,10 @@ def search_data(wallet: Wallet) -> None:
             print("Invalid selection")
 
         filter_type = "expense" if e_or_i == "1" else "income"
-        filtered = [t for t in filtered if t.type == filter_type]
+        stmt = stmt.where(Transaction.type == filter_type)
+
+    stmt = stmt.order_by(Transaction.transaction_date)
+    filtered = session.scalars(stmt).all()
 
     if not filtered:
         print("No transactions found.")
@@ -210,7 +213,7 @@ def main() -> None:
             if action == "1":
                 add_transaction(session, wallet)
             elif action == "2":
-                view_balance(wallet)
+                view_balance(session, wallet)
             elif action == "3":
                 view_history(wallet)
             elif action == "4":
@@ -218,7 +221,7 @@ def main() -> None:
             elif action == "5":
                 view_budget(wallet)
             elif action == "6":
-                search_data(wallet)
+                search_data(wallet, session)
             elif action == "7":
                 clear_transactions(session, wallet)
             elif action == "8":
